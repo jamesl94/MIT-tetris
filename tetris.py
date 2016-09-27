@@ -1,6 +1,7 @@
 from graphics import *
 import random
 import pdb
+import copy
 
 ############################################################
 # BLOCK CLASS
@@ -312,9 +313,10 @@ class Board():
 
         '''
 
-        # if x < 0 or x > self.width - 1 or y < 0 or y > self.height - 1:
-        #     if self.grid[Point(x, y)]:
-        #         return False
+        if x < 0 or x > self.width - 1 or y < 0 or y > self.height - 1:
+            return False
+        if (x, y) in self.grid.keys():
+            return False
         return True
 
     def add_shape(self, shape):
@@ -328,10 +330,10 @@ class Board():
             get the list of blocks
 
         '''
-
-        #YOUR CODE HERE
-        pass
-
+        #Get blocks
+        blocks = shape.get_blocks()
+        for block in blocks:
+            self.grid[block] = shape
 
     def delete_row(self, y):
         ''' Parameters: y - type:int
@@ -432,12 +434,14 @@ class Tetris():
         # set the current shape to a random new shape
         self.current_shape = self.create_new_shape()
 
+
+
         # Draw the current_shape on the board (take a look at the
         # draw_shape method in the Board class)
         self.board.draw_shape(self.current_shape)
 
         # For Step 9:  animate the shape!
-        ####  YOUR CODE HERE ####
+        self.animate_shape
 
 
     def create_new_shape(self):
@@ -448,8 +452,9 @@ class Tetris():
             return the shape
         '''
         rand_shape = random.choice(Tetris.SHAPES)
-        rand_shape.center = Point(int(self.BOARD_WIDTH/2), 0)
-        return rand_shape
+        center = Point(int(self.BOARD_WIDTH/2), 0)
+        rand_shape_instance = rand_shape(center)
+        return rand_shape_instance
 
     def animate_shape(self):
         ''' animate the shape - move down at equal intervals
@@ -475,9 +480,17 @@ class Tetris():
             return False
 
         '''
-
-        #YOUR CODE HERE
-        pass
+        direction_name = copy.copy(direction)
+        direction = Tetris.DIRECTION[direction]
+        if self.current_shape.can_move(self.board, direction[0], direction[1]):
+            self.current_shape.move(direction[0], direction[1])
+            return False
+        #Last failed was Down
+        elif direction_name == 'Down':
+            self.board.add_shape(self.current_shape)
+            self.current_shape = self.create_new_shape()
+            self.board.draw_shape(self.current_shape)
+            return False
 
     def do_rotate(self):
         ''' Checks if the current_shape can be rotated and
@@ -505,7 +518,8 @@ class Tetris():
 
         #YOUR CODE HERE
         key = event.keysym
-        print key
+        if key in Tetris.DIRECTION.keys():
+            self.do_move(key)
 
 ################################################################
 # Start the game
