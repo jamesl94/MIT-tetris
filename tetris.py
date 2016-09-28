@@ -150,8 +150,13 @@ class Shape():
         '''
 
         #YOUR CODE HERE
-        rotation_direction = get_rotation_dir()
-        pass
+        rd = self.get_rotation_dir()
+        for block in self.get_blocks():
+            x = self.center_block.x - rd*self.center_block.y + rd*block.y
+            y = self.center_block.y + rd*self.center_block.x - rd*block.x
+            if not board.can_move(x, y):
+                return False
+        return True
 
     def rotate(self, board):
         ''' Parameters: board - type: Board object
@@ -164,8 +169,15 @@ class Shape():
         '''
 
         ####  YOUR CODE HERE #####
-        pass
-
+        rd = self.get_rotation_dir()
+        for block in self.get_blocks():
+            x = block.x
+            y = block.y
+            new_x = self.center_block.x - rd*self.center_block.y + rd*block.y
+            new_y = self.center_block.y + rd*self.center_block.x - rd*block.x
+            dx = new_x - x
+            dy = new_y - y
+            block.move(dx, dy)
         ### This should be at the END of your rotate code.
         ### DO NOT touch it. Default behavior is that a piece will only shift
         ### rotation direciton after a successful rotation. This ensures that
@@ -312,7 +324,6 @@ class Board():
             3. otherwise return True
 
         '''
-
         if x < 0 or x > self.width - 1 or y < 0 or y > self.height - 1:
             return False
         if (x, y) in self.grid.keys():
@@ -333,7 +344,9 @@ class Board():
         #Get blocks
         blocks = shape.get_blocks()
         for block in blocks:
-            self.grid[block] = shape
+            x = block.x
+            y = block.y
+            self.grid[(x, y)] = block
 
     def delete_row(self, y):
         ''' Parameters: y - type:int
@@ -346,8 +359,10 @@ class Board():
             handout
 
         '''
-
-        #YOUR CODE HERE
+        for block in self.grid.keys():
+            if block[1] == y:
+                self.grid[block].undraw()
+                del self.grid[block]
         pass
 
     def is_row_complete(self, y):
@@ -360,9 +375,15 @@ class Board():
             otherwise return True
 
         '''
-
         #YOUR CODE HERE
-        pass
+        block_list_x = []
+        for block_pos in self.grid.keys():
+            if block_pos[1] == y:
+                block_list_x.append(block_pos[0])
+        if len(block_list_x) == 10:
+            return True
+        else:
+            return False
 
     def move_down_rows(self, y_start):
         ''' Parameters: y_start - type:int
@@ -376,8 +397,12 @@ class Board():
 
         '''
 
-        #YOUR CODE HERE
-        pass
+        for pos_block in self.grid.items():
+            pos, block = pos_block
+            if pos[1] <= y_start:
+                del self.grid[pos]
+                block.move(0, 1)
+                self.grid[pos[0], pos[1] + 1] = block
 
     def remove_complete_rows(self):
         ''' removes all the complete rows
@@ -389,14 +414,21 @@ class Board():
 
         '''
 
-        #YOUR CODE HERE
+        for y in range(0, self.height):
+            if self.is_row_complete(y):
+                print 'delete'
+                self.delete_row(y)
+                self.move_down_rows(y)
 
     def game_over(self):
         ''' display "Game Over !!!" message in the center of the board
             HINT: use the Text class from the graphics library
         '''
-
-        #YOUR CODE HERE
+        game_over = Text(Point(200, 50), "GAME OVER !!!")
+        game_over.setSize(40)
+        game_over.setStyle("bold")
+        game_over.setTextColor("white")
+        game_over.draw(self.canvas)
         pass
 
 
@@ -441,7 +473,7 @@ class Tetris():
         self.board.draw_shape(self.current_shape)
 
         # For Step 9:  animate the shape!
-        self.animate_shape
+        self.animate_shape()
 
 
     def create_new_shape(self):
@@ -460,7 +492,6 @@ class Tetris():
         ''' animate the shape - move down at equal intervals
             specified by the delay attribute
         '''
-
         self.do_move('Down')
         self.win.after(self.delay, self.animate_shape)
 
@@ -484,21 +515,28 @@ class Tetris():
         direction = Tetris.DIRECTION[direction]
         if self.current_shape.can_move(self.board, direction[0], direction[1]):
             self.current_shape.move(direction[0], direction[1])
-            return False
         #Last failed was Down
         elif direction_name == 'Down':
-            self.board.add_shape(self.current_shape)
-            self.current_shape = self.create_new_shape()
-            self.board.draw_shape(self.current_shape)
-            return False
+            #Add shape to board.grid
+            if self.board.add_shape(self.current_shape):
+            #Check if any row complete
+                for y in range(0, self.board.height):
+                    self.board.is_row_complete(y)
+                    self.board.remove_complete_rows()
+                self.current_shape = self.create_new_shape()
+                self.board.draw_shape(self.current_shape)
+            else:
+                self.board.game_over()
+        return False
 
     def do_rotate(self):
         ''' Checks if the current_shape can be rotated and
             rotates if it can
         '''
-
-        #YOUR CODE HERE
-        pass
+        if self.current_shape.can_rotate(self.board):
+            self.current_shape.rotate(self.board)
+        else:
+            return False
 
     def key_pressed(self, event):
         ''' this function is called when a key is pressed on the keyboard
@@ -520,6 +558,24 @@ class Tetris():
         key = event.keysym
         if key in Tetris.DIRECTION.keys():
             self.do_move(key)
+
+        #space moves to bottom
+        if key == "space":
+            #Loop to move down while can move
+            while self.current_shape.can_move(self.board, 0, 1):
+                self.do_move("Down")
+            #Add shape
+            self.board.add_shape(self.current_shape)
+            #Check if row complete
+            for y in range(0, self.board.height):
+                self.board.is_row_complete(y)
+                self.board.remove_complete_rows()
+            self.current_shape = self.create_new_shape()
+            self.board.draw_shape(self.current_shape)
+
+        #Up rotates
+        if key == "Up":
+            self.do_rotate()
 
 ################################################################
 # Start the game
